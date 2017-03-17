@@ -15,7 +15,7 @@ class Engine(object):
   self.wlan  = wlan
   self.mode  = mode
   self.chan  = channel
-  self.delay = 60 if mode == 'S' else 15
+  self.delay = 180 if mode == 'S' else 60
 
  def Monitor(self):
   call(['ifconfig',self.wlan,'down'])
