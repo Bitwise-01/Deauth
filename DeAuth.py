@@ -23,7 +23,7 @@ class Engine(object):
   self.e_min = e_min
   self.chan  = channel
   self.csv   = desti
-  self.delay = 5# 60  if mode == 'S' else 120
+  self.delay = 120 if mode == 'S' else 60
 
  def monitor(self):
   call(['ifconfig',self.wlan,'down'])
