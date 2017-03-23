@@ -23,7 +23,7 @@ class Engine(object):
   self.e_min = e_min
   self.chan  = channel
   self.csv   = desti
-  self.delay = 120 if mode == 'S' else 60
+  self.delay = 60 if mode == 'S' else 30
 
  def monitor(self):
   call(['ifconfig',self.wlan,'down'])
@@ -148,9 +148,12 @@ def main():
     print 'Status\n[-] Attacking: {}\n[-] Attack Ends: {}:{}'.format(engine.state,e_hr,e_min)
    elif engine.state==False:
     call(['clear'])
+    engine.state=False
+    delay=False
+    alive=False
+    Popen(['pkill','airodump-ng']).wait()
     print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(engine.state,s_hr,s_min)
     time.sleep(.4)
-    Popen(['pkill','airodump-ng']).wait()
    else:
     call(['clear'])
     print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(msg,s_hr,s_min)
@@ -181,6 +184,7 @@ def main():
                 
   except KeyboardInterrupt:
    call(['clear'])
+   delay=False
    Popen(['pkill','airodump-ng']).wait()
    Popen(['pkill','aireplay-ng']).wait()
    for i in range(2):engine.managed()
