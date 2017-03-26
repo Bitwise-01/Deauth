@@ -17,10 +17,10 @@ class Engine(object):
   self.bssid = mac     
   self.wlan  = wlan
   self.mode  = mode
-  self.s_hr  = int(s_hr)
-  self.e_hr  = int(e_hr)
-  self.s_min = int(s_min)
-  self.e_min = int(e_min)
+  self.s_hr  = s_hr
+  self.e_hr  = e_hr
+  self.s_min = s_min
+  self.e_min = e_min
   self.chan  = channel
   self.csv   = desti
   self.alive = False
@@ -30,6 +30,10 @@ class Engine(object):
   self.n_e_h = '0{}'.format(self.e_hr) if len(str(self.s_hr))<2 else self.e_hr
   self.n_s_m = '0{}'.format(self.s_min) if len(str(self.s_min))<2 else self.s_min
   self.n_e_m = '0{}'.format(self.e_min) if len(str(self.s_min))<2 else self.e_min
+  self.s_hr  = int(s_hr)
+  self.e_hr  = int(e_hr)
+  self.s_min = int(s_min)
+  self.e_min = int(e_min)
 
  def monitor(self):
   call(['ifconfig',self.wlan,'down'])
@@ -48,6 +52,7 @@ class Engine(object):
 
  def scan(self):
   Popen(['pkill','airodump-ng']).wait()
+  self.clean()
   cmd=['airodump-ng','--output-format','csv','--bssid',self.bssid,'-c',self.chan,'-w','list',self.wlan]
   Popen(cmd,stderr=Devnull,stdout=Devnull)
 
@@ -82,18 +87,19 @@ class Engine(object):
        return chan
   except:self.obtainInfo()
 
- def clean(self):
-  list=(item for item in os.listdir('.') if item.endswith('.csv')) 
-  for item in list:os.remove(item)  
+ def clean(self): 
+  for item in os.listdir('.'):
+   if os.path.isfile('/tmp/{}'.format(item)):
+    os.remove(item)
 
  def kill(self):
   self.state=False
   self.alive=False
   self.delay=False
-  Popen(['pkill','airodump-ng']).wait()
-  Popen(['pkill','aireplay-ng']).wait()
-  for i in range(2):self.managed();self.clean()
-
+  Popen(['pkill','airodump-ng'])
+  Popen(['pkill','aireplay-ng'])
+  self.managed();self.clean()
+  
 def from_file_to_list(file):
  list=[]
  if not os.path.exists(file):
@@ -169,11 +175,13 @@ def main():
      if a!=b:continue
 
      if alpha == engine.e_hr and beta == engine.e_min:
+      Popen(['pkill','airodump-ng']).wait()
       engine.state=False
       engine.alive=False
       engine.delay=False
+      engine.clean()
 
- # Start Proc
+ # Start Process
  while 1:
   try:
    # Mode Changer
@@ -198,7 +206,6 @@ def main():
     
    # When It's Not Off Or On
    else:
-
     # Messages To Display; It Depends On If It's Off Or Neutral
     if engine.alive:
      call(['clear'])
@@ -216,7 +223,7 @@ def main():
 
    # When It's Off; Do This
    if engine.state==False:
-    if engine.alive:Popen(['pkill','airodump-ng']).wait();engine.alive=False
+    if engine.alive:Popen(['pkill','airodump-ng']).wait();engine.clean();engine.alive=False
 
    # Attack Function
    def attack(client):
@@ -248,7 +255,7 @@ def main():
     # Kills The Time Keeping Thread
     engine.delay=False
  
-   # Try & Reduce Fli
+   # Try & Reduce Flicker Of Screen
    time.sleep(.4)  
 
    # Flush List That Holds Time 
