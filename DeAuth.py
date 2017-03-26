@@ -26,10 +26,10 @@ class Engine(object):
   self.alive = False
   self.delay = False
   self.dely  = 180 if mode == 'S' else 60
-  self.n_s_h = '0{}'.format(self.s_hr) if len(str(self.s_hr))<2 else self.s_hr
-  self.n_e_h = '0{}'.format(self.e_hr) if len(str(self.s_hr))<2 else self.e_hr
-  self.n_s_m = '0{}'.format(self.s_min) if len(str(self.s_min))<2 else self.s_min
-  self.n_e_m = '0{}'.format(self.e_min) if len(str(self.s_min))<2 else self.e_min
+  self.n_s_h = '0{}'.format(self.s_hr)  if len(str(self.s_hr))  <2 else self.s_hr
+  self.n_e_h = '0{}'.format(self.e_hr)  if len(str(self.s_hr))  <2 else self.e_hr
+  self.n_s_m = '0{}'.format(self.s_min) if len(str(self.s_min)) <2 else self.s_min
+  self.n_e_m = '0{}'.format(self.e_min) if len(str(self.s_min)) <2 else self.e_min
   self.s_hr  = int(s_hr)
   self.e_hr  = int(e_hr)
   self.s_min = int(s_min)
@@ -48,8 +48,7 @@ class Engine(object):
   Popen(['macchanger','-p',self.wlan],stdout=Devnull,stderr=Devnull)
   call(['ifconfig',self.wlan,'up'])
   call(['service','network-manager','restart'])
-  exit()
-
+  
  def scan(self):
   Popen(['pkill','airodump-ng']).wait()
   self.clean()
@@ -261,13 +260,14 @@ def main():
    # Flush List That Holds Time 
    del mem[0][:];del mem[1][:]  
        
-  except KeyboardInterrupt:
-   call(['clear']) 
-   kill=Thread(target=engine.kill);kill.start()
+  except KeyboardInterrupt: 
+   call(['clear'])
    print '[-] Exiting ...'
-   while kill.is_alive():pass
+   engine.kill()
    break
+   
 
+ 
 if __name__ == '__main__':
  # Filters
  if sys.platform != 'linux2':
