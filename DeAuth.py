@@ -49,6 +49,7 @@ class Engine(object):
   subprocess.Popen(['macchanger','-p',self.wlan],stdout=Devnull,stderr=Devnull).wait()
   subprocess.Popen(['ifconfig',self.wlan,'up']).wait()
   subprocess.Popen(['service','network-manager','restart']).wait()
+  time.sleep(2.56)
 
  def update(self):
   output='/tmp/output'
@@ -159,6 +160,14 @@ def main():
 
  # Change Directory
  os.chdir('/tmp')
+
+ # Loading
+ def load():
+  while engine.run:
+   for l in ['','.','..','...']:
+    subprocess.call(['clear'])
+    print '[-] Exiting {}'.format(l)
+    time.sleep(0.155)   
 
  # Updates
  def updates():
@@ -272,9 +281,10 @@ def main():
    # Flush List That Holds Time
    del mem[0][:];del mem[1][:]
   except KeyboardInterrupt:
-   subprocess.call(['clear'])
-   print '[-] Exiting ...'
-   engine.kill()
+   #subprocess.call(['clear'])
+   #print '[-] Exiting ...'
+   Thread(target=load).start()
+   engine.kill() 
 
 if __name__ == '__main__':
  # Filters
