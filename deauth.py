@@ -131,14 +131,14 @@ class Engine(Deauthenticate,TimeManager,Interface):
 
   self.atk = False
   self.alive = True
-  self.delay = 35 if mode == 'S' else 3
+  self.delay = 35 if mode == 'S' else 1
   self.blacklist = blacklist
 
  def display(self):
   while self.alive:
    ends = '{}:{} {}'.format(self.hr_e,mn_e,pd_e)
    starts = '{}:{} {}'.format(self.hr_s,mn_s,pd_s)
-   mode = 'Aggressive' if self.delay == 3 else 'Stealth'
+   mode = 'Aggressive' if self.delay == 1 else 'Stealth'
    subprocess.call(['clear'])
    if self.atk:
     print 'Status\n[-] Mode: {}\n[-] Attacking: True\n[-] Attacking Ends: {}'.format(mode,ends)
@@ -176,7 +176,7 @@ if __name__ == '__main__':
  userArgs = argparse.ArgumentParser()
  userArgs.add_argument('interface',help='wireless interface')
  userArgs.add_argument('bssid',help='bssid of router')
- userArgs.add_argument('mode',help='[A]ggressive [S]tealth') # Aggressive: 3 sec; Stealth: 35 sec
+ userArgs.add_argument('mode',help='[A]ggressive [S]tealth') # Aggressive: 1 sec; Stealth: 35 sec
  userArgs.add_argument('blacklist',help='path to blacklist with mac addresses')
  userArgs.add_argument('startTime',help='time to start attack. 12 format Time; Enter 05:12')
  userArgs.add_argument('startPeriod',help='AM/PM')
